@@ -25,5 +25,23 @@ class Task{
             this.db.dbConnectionEnd();
         })
     }
+
+    updateTask(id,description,completed,callback){
+        this.db.dbConnect();
+        this.db.connection.query("UPDATE tasks set description=? , completed=? WHERE id=?",[description,completed,id], function (error, results, fields) {
+            if(error) throw error
+            callback(results.affectedRows);
+        });
+        this.db.dbConnectionEnd();
+    }
+
+    deleteTask(id,callback){
+        this.db.dbConnect();
+        this.db.connection.query("DELETE FROM tasks WHERE id=?",[id], function (error, results, fields) {
+            if(error) throw error
+            callback(results.affectedRows);
+        });
+        this.db.dbConnectionEnd();
+    }
 }
 module.exports=Task;
