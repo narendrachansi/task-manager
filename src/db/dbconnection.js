@@ -9,14 +9,17 @@ class Database{
         });
     }
     dbConnect(){
-        this.connection.connect();
+        this.connection.connect(function(err) {
+            if (err) {
+              console.error('error connecting: ' + err.stack);
+              return;
+            }
+        });
     }
     dbConnectionEnd(){
         this.connection.end();
     }
 }
 
-db=new Database();
-
-module.exports= db;
+module.exports= Database;
  
