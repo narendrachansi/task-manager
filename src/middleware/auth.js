@@ -5,8 +5,9 @@ const auth =async (req,res,next) =>{
     const token=req.headers.authorization.replace('Bearer ','')
     const decodedId=await jwt.verify(token,'VSC!')
     const db=new Database()
-    const user=new User(db)
+    const user=new User(db.connection)
     try{
+        db.dbConnect()
         await user.getUser(decodedId.id,(data)=>{
             const tokens=data[0].tokens
             const allTokens=user.unserializeTokens(tokens)
@@ -19,14 +20,17 @@ const auth =async (req,res,next) =>{
                     delete this[0].tokens
                     return this
                 }
+                db.dbConnectionEnd()
                 req.user=data
                 next()
             }else{
                 res.status(404).send('Error: Please Authenticate')
+                db.dbConnectionEnd()
             }        
         })
     }catch(e){
         res.status(404).send('Error: Please Authenticate')
+        db.dbConnectionEnd()
     }   
 }
 

@@ -9,7 +9,7 @@ const router=new express.Router()
 //add a new user
 router.post('/users',async (req,res)=>{
     const db=new Database()
-    const user=new User(db)
+    const user=new User(db.connection)
     const name=req.body.name
     const email=req.body.email
     const password=req.body.password
@@ -17,46 +17,67 @@ router.post('/users',async (req,res)=>{
        return res.send('Data entry missing!')
     }
     try{
+        db.dbConnect()
         const hashedPassword=await bcrypt.hash(password,8)
         await user.addUser(name,email,hashedPassword,(id)=>{
             if(!id){
                 return res.status(404).send('User not added!')
             }
-            user.generateAuthToken(id,email,hashedPassword,tokens=null,(userObj)=>{
-                res.status(201).send(userObj);
+            user.generateAuthToken(id,tokens=null,(token)=>{
+                user.getUser(id,(data)=>{
+                    data[0].token=token
+                    data.toJSON=function(){
+                        delete this[0].password
+                        delete this[0].tokens
+                        return this
+                    }
+                    res.status(201).send(data)
+                    db.dbConnectionEnd()
+                })
             })
         });
     }catch(e){
         res.send(e);
+        db.dbConnectionEnd()
     }
 })
 
 //login
 router.post("/users/login",async (req,res)=>{
     const db=new Database()
-    const user=new User(db)
+    const user=new User(db.connection)
     const email=req.body.email
     const password=req.body.password
     if(!email || !password){
         return res.status(404).send('Login details missing')
     }
     try{
-        await user.login(email,(id,hashedPassword,tokens)=>{
-            if(!hashedPassword){
+        db.dbConnect()
+        await user.login(email,(data)=>{
+            if(!data[0].password){
                 return res.status(404).send('Invalid Username')
             }
-            bcrypt.compare(password,hashedPassword,(error,result)=>{
+            bcrypt.compare(password,data[0].password,(error,result)=>{
                 if(!result){
                     return res.status(404).send('Invalid password')
                 }
-                const token=user.generateAuthToken(id,email,hashedPassword,tokens,(userobj)=>{
-                    res.status(200).send(userobj)
-                })
-                
+                user.generateAuthToken(data[0].id,data[0].tokens,(token)=>{
+                    user.getUser(data[0].id,(data)=>{
+                        data[0].token=token
+                        data.toJSON=function(){
+                            delete this[0].password
+                            delete this[0].tokens
+                            return this
+                        }
+                        res.status(200).send(data)
+                        db.dbConnectionEnd()
+                    }) 
+                })               
             })
         })
     }catch(e){
         res.status(500).send(e)
+        db.dbConnectionEnd()
     }
 })
 
@@ -68,11 +89,14 @@ router.post("/users/logout",auth,async (req,res)=>{
         const updatedTokens=tokens.filter(eachToken=>eachToken.token!==token)
         req.user[0].tokens=updatedTokens
         const db=new Database()
-        const user=new User(db) 
+        const user=new User(db.connection) 
+        db.dbConnect()
         await user.updateToken(updatedTokens,req.user[0].id)
         res.status(200).send()
+        db.dbConnectionEnd()
     }catch(e){
         res.status(500).send(e)
+        db.dbConnectionEnd()
     }
 })
 
@@ -83,11 +107,14 @@ router.post("/users/logoutall",auth,async (req,res)=>{
         const token=req.headers.authorization.replace('Bearer ','')
         req.user[0].tokens=[]
         const db=new Database()
-        const user=new User(db) 
+        const user=new User(db.connection) 
+        db.dbConnect()
         await user.updateToken(req.user[0].tokens,req.user[0].id)
         res.status(200).send()
+        db.dbConnectionEnd()
     }catch(e){
         res.status(500).send(e)
+        db.dbConnectionEnd()
     }
 })
 
@@ -145,15 +172,17 @@ router.patch("/users/me",auth,async (req,res)=>{
         })
         const query=sql.replace(/,+$/, ''); 
         updateData.push(id)
-        console.log(updateData)
         const db=new Database()
-        const user=new User(db)
+        const user=new User(db.connection)
+        db.dbConnect()
         await user.updateUser(query,updateData,(numberOfaffectedRows)=>{
             if(numberOfaffectedRows==0) return res.status(404).send('Id not found!!!');
             res.status(200).send('User updated');
+            db.dbConnectionEnd()
         })
     }catch(e){
         res.status(500).send(e)
+        db.dbConnectionEnd()
     }
 })
 
@@ -185,13 +214,16 @@ router.delete("/users/me",auth,async (req,res)=>{
     const id=req.user[0].id
     try{
         const db=new Database()
-        const user=new User(db)
+        const user=new User(db.connection)
+        db.dbConnect()
         await user.deleteUser(id,(numberOfaffectedRows)=>{
             if(numberOfaffectedRows==0) return res.status(404).send('Id not found!!!');
             res.status(200).send('User deleted');
-        })       
+            db.dbConnectionEnd() 
+        })      
     }catch(e){
         res.status(500).send(e)
+        db.dbConnectionEnd()
     }
 })
 

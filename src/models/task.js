@@ -1,47 +1,58 @@
 class Task{
-    constructor(db){
-        this.db=db
+    constructor(connection){
+        this.connection=connection
     }
-    addTask(description){
-        this.db.dbConnect();
-        this.db.connection.query("insert into tasks (description) values(?)",[description],function(error,results,fields){
+    addTask(owner,description,callback){
+        this.connection.query("insert into tasks (owner,description) values(?,?)",[owner,description],function(error,results,fields){
             if(error) throw error
+            callback(results.insertId)
         });
-        this.db.dbConnectionEnd();
     }
-    getTasks(callback){
-        this.db.dbConnect()
-        this.db.connection.query("select * from tasks",(error,results,fields)=>{
+    getTasks(id,completed,limit,skip,sortBy,callback){
+        this.sql='owner=?'
+        this.values=[id]
+        if(completed){
+            this.sql += ' and completed=?'
+            this.values.push(completed)
+        }
+        if(sortBy){
+            this.sql += ' ORDER BY'
+            if(sortBy[0]) this.sql += ' '+sortBy[0]
+            if(sortBy[1]) this.sql += ' '+sortBy[1]
+        }
+        if(limit){
+            this.sql += ' limit ?'
+            this.values.push(limit)
+            if(skip){
+                this.sql += ' OFFSET ?'
+                this.values.push(skip)
+            }
+        }
+
+        const test=this.connection.query("select * from tasks where "+this.sql,this.values,(error,results,fields)=>{
             if(error) throw error
             callback(results)
         })
-        this.db.dbConnectionEnd();
     }
-    getTask(id,callback){
-        this.db.dbConnect()
-        this.db.connection.query("select * from tasks where id=?",[id],(error,results,fields)=>{
+    getTask(id,owner,callback){
+        this.connection.query("select * from tasks where id=? and owner=?",[id,owner],(error,results,fields)=>{
             if(error) throw error
             callback(results)
-            this.db.dbConnectionEnd();
         })
     }
 
-    updateTask(id,description,completed,callback){
-        this.db.dbConnect();
-        this.db.connection.query("UPDATE tasks set description=? , completed=? WHERE id=?",[description,completed,id], function (error, results, fields) {
+    updateTask(sql,updateData,callback){
+        this.connection.query("UPDATE tasks set "+sql+" WHERE id=? and owner=?",updateData, function (error, results, fields) {
             if(error) throw error
             callback(results.affectedRows);
         });
-        this.db.dbConnectionEnd();
     }
 
-    deleteTask(id,callback){
-        this.db.dbConnect();
-        this.db.connection.query("DELETE FROM tasks WHERE id=?",[id], function (error, results, fields) {
+    deleteTask(id,owner,callback){
+        this.connection.query("DELETE FROM tasks WHERE id=? and owner=?",[id,owner], function (error, results, fields) {
             if(error) throw error
             callback(results.affectedRows);
         });
-        this.db.dbConnectionEnd();
     }
 }
 module.exports=Task;
