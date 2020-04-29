@@ -62,16 +62,15 @@ router.post("/users/login",async (req,res)=>{
 
 // logout a single user token
 router.post("/users/logout",auth,async (req,res)=>{
-    //console.log(req.user)
     try{
         const tokens=req.user[0].tokens
-        const token=req.headers.authorization.replace('Bearer ','')
+        const token=req.token
         const updatedTokens=tokens.filter(eachToken=>eachToken.token!==token)
         req.user[0].tokens=updatedTokens
         const db=new Database()
         const user=new User(db) 
         await user.updateToken(updatedTokens,req.user[0].id)
-        res.status(200).send(req.user)
+        res.status(200).send()
     }catch(e){
         res.status(500).send(e)
     }
@@ -79,7 +78,6 @@ router.post("/users/logout",auth,async (req,res)=>{
 
 //logout all
 router.post("/users/logoutall",auth,async (req,res)=>{
-    console.log(req.user)
     try{
         const tokens=req.user[0].tokens
         const token=req.headers.authorization.replace('Bearer ','')
@@ -87,7 +85,7 @@ router.post("/users/logoutall",auth,async (req,res)=>{
         const db=new Database()
         const user=new User(db) 
         await user.updateToken(req.user[0].tokens,req.user[0].id)
-        res.status(200).send(req.user)
+        res.status(200).send()
     }catch(e){
         res.status(500).send(e)
     }
@@ -109,24 +107,59 @@ router.get("/users/me",auth,(req,res)=>{
 
 
 //get a single user
-router.get("/users/:id",(req,res)=>{
-    const id=req.params.id
+// router.get("/users/:id",(req,res)=>{
+//     const id=req.params.id
+//     try{
+//         const db=new Database()
+//         const user=new User(db)
+//         user.getUser(id,(data)=>{
+//             if(data.length===0){
+//                 return res.status(404).send()
+//             }
+//             res.status(200).send(data);
+//         });
+//     }catch(e){
+//         res.status(500).send(e)
+//     }
+// })
+
+//update profile
+router.patch("/users/me",auth,async (req,res)=>{
     try{
+        const id=req.user[0].id
+        const fields=['name','email','password']
+        if(req.body.password) {
+            hashedPassword=await bcrypt.hash(req.body.password,8)
+        }
+        const updateData=[]
+        let sql=''
+        fields.map((field)=>{
+            if(req.body[field]){
+                sql += field+'=?,'
+                if(field=='password'){
+                    updateData.push(hashedPassword)
+                }else{
+                    updateData.push(req.body[field])
+                }            
+            }
+        })
+        const query=sql.replace(/,+$/, ''); 
+        updateData.push(id)
+        console.log(updateData)
         const db=new Database()
         const user=new User(db)
-        user.getUser(id,(data)=>{
-            if(data.length===0){
-                return res.status(404).send()
-            }
-            res.status(200).send(data);
-        });
+        await user.updateUser(query,updateData,(numberOfaffectedRows)=>{
+            if(numberOfaffectedRows==0) return res.status(404).send('Id not found!!!');
+            res.status(200).send('User updated');
+        })
     }catch(e){
         res.status(500).send(e)
     }
 })
 
+/*
 //update a user
-router.patch("/users/:id",async (req,res)=>{
+router.patch("/users/:id",auth,async (req,res)=>{
     const id=req.params.id
     const name=req.body.name
     const email=req.body.email
@@ -146,13 +179,10 @@ router.patch("/users/:id",async (req,res)=>{
         res.status(500).send(e)
     }
 })
-
-//delete a user
-router.delete("/users/:id",async (req,res)=>{
-    const id=req.params.id
-    if(!id){
-        return res.status(404).send('Missing id to be deleted');
-    }
+*/
+// delete profile
+router.delete("/users/me",auth,async (req,res)=>{
+    const id=req.user[0].id
     try{
         const db=new Database()
         const user=new User(db)
@@ -164,5 +194,23 @@ router.delete("/users/:id",async (req,res)=>{
         res.status(500).send(e)
     }
 })
+
+//delete a user
+// router.delete("/users/:id",async (req,res)=>{
+//     const id=req.params.id
+//     if(!id){
+//         return res.status(404).send('Missing id to be deleted');
+//     }
+//     try{
+//         const db=new Database()
+//         const user=new User(db)
+//         await user.deleteUser(id,(numberOfaffectedRows)=>{
+//             if(numberOfaffectedRows==0) return res.status(404).send('Id not found!!!');
+//             res.status(200).send('User deleted');
+//         })       
+//     }catch(e){
+//         res.status(500).send(e)
+//     }
+// })
 
 module.exports=router

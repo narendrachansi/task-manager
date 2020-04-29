@@ -34,7 +34,8 @@ class User{
         tokens.push({token})
         this.db.connection.query("UPDATE users set tokens=? WHERE id=?",[JSON.stringify(tokens),id], function (error, results, fields) {
             if(error) throw error
-            callback({user:{id,email,password,tokens},token});
+            callback({user:{id,email},token});
+            //callback({user:{id,email,password,tokens},token});
         });     
         this.db.dbConnectionEnd();
     }
@@ -66,9 +67,9 @@ class User{
         this.db.dbConnectionEnd();
     }
 
-    updateUser(id,name,email,password,callback){
+    updateUser(sql,updateData,callback){
         this.db.dbConnect();
-        this.db.connection.query("UPDATE users set name=? , email=?, password=? WHERE id=?",[name,email,password,id], function (error, results, fields) {
+        this.db.connection.query("UPDATE users set "+sql+" WHERE id=?",updateData, function (error, results, fields) {
             if(error) throw error
             callback(results.affectedRows);
         });

@@ -12,6 +12,13 @@ const auth =async (req,res,next) =>{
             const allTokens=user.unserializeTokens(tokens)
             if(allTokens.find(eachtoken=>eachtoken.token===token)){
                 data[0].tokens=allTokens
+                req.token=token
+                /***** toJSON function will hide password and tokens when data is JSON stringified or res is send */
+                data.toJSON=function(){
+                    delete this[0].password
+                    delete this[0].tokens
+                    return this
+                }
                 req.user=data
                 next()
             }else{
