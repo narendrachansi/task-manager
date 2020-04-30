@@ -2,7 +2,12 @@ const express=require('express');
 const bcrypt=require('bcrypt');
 const Database=require('../db/dbconnection');
 const User=require('../models/user');
+const multer=require('multer')
 const auth=require('../middleware/auth')
+const fs = require('fs');
+const jimp=require('jimp')
+const constant=require('../../constants/constant')
+const Email=require('../emails/email')
 // create express router to manage routers in separate pages
 const router=new express.Router()
 
@@ -31,6 +36,16 @@ router.post('/users',async (req,res)=>{
                         delete this[0].tokens
                         return this
                     }
+                    const email=new Email()
+                    const mailOptions = {
+                        from: constant.username,
+                        to: data[0].email,
+                        subject: 'Accounted created',
+                        text: 'New account created'
+                    };
+                    email.sendEmail(mailOptions,(outcome)=>{
+                        console.log(outcome)
+                    })                   
                     res.status(201).send(data)
                     db.dbConnectionEnd()
                 })
@@ -218,6 +233,16 @@ router.delete("/users/me",auth,async (req,res)=>{
         db.dbConnect()
         await user.deleteUser(id,(numberOfaffectedRows)=>{
             if(numberOfaffectedRows==0) return res.status(404).send('Id not found!!!');
+            const email=new Email()
+            const mailOptions = {
+                from: constant.username,
+                to: req.user[0].email,
+                subject: 'Test account deleted',
+                text: 'Test acccount deleted'
+            };
+            email.sendEmail(mailOptions,(outcome)=>{
+                console.log(outcome)
+            }) 
             res.status(200).send('User deleted');
             db.dbConnectionEnd() 
         })      
@@ -244,5 +269,64 @@ router.delete("/users/me",auth,async (req,res)=>{
 //         res.status(500).send(e)
 //     }
 // })
+
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      const path= 'avatars/'+req.user[0].id+'_'+req.user[0].name
+      if (!fs.existsSync(path)){
+        fs.mkdirSync(path);
+      }
+      cb(null, path)
+    },
+    filename: function (req, file, cb) {
+        cb(null,'profile.jpg')
+    },
+    fileFilter(req,file,cb){
+        if(!file.originalname.match(/\.(jpg|jpeg|gif|jiff)$/)){
+            return cb(new Error('Please upload word documents'))
+        }
+        cb(undefined,true)
+    }
+  })
+
+  const upload=multer({
+    storage: storage,
+    limits:{
+        fileSize: 1000000
+    },
+    fileFilter(req,file,cb){
+        if(!file.originalname.match(/\.(jpg|jpeg|gif|jiff)$/)){
+            return cb(new Error('Please upload images'))
+        }
+        cb(undefined,true)
+    }
+})
+
+// upload avatar for profile
+//call back function will handle the unexpected error occured in middleware upload
+router.post("/users/me/avatar",auth,upload.single('avatar'),(req,res)=>{
+    const path= 'avatars/'+req.user[0].id+'_'+req.user[0].name+'/'+'profile.jpg'
+    jimp.read(path, (err, lenna) => {
+        if (err) throw err;
+        lenna
+          .resize(200,jimp.AUTO) // resize
+          .quality(60) // set JPEG quality
+          .greyscale() // set greyscale
+          .write(path); // save
+      });
+    res.send()
+},(error,req,res,next)=>{
+    if(error) res.status(400).send({'error':error.message})
+})
+
+router.delete("/users/me/avatar",auth,(req,res)=>{
+    const path= 'avatars/'+req.user[0].id+'_'+req.user[0].name+'/profile.jpg'
+      if (fs.existsSync(path)){
+        fs.unlinkSync(path)
+      }
+      res.status(200).send('Profile image deleted')
+})
+
 
 module.exports=router
