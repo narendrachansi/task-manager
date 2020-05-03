@@ -7,7 +7,7 @@ const auth=require('../middleware/auth')
 router.post("/tasks",auth,async (req,res)=>{
     const owner=req.user[0].id
     if(!req.body.description){
-        res.send('Post data missing!');
+        res.status(505).send('Post data missing!');
     }else{
         const db=new Database()
         const task=new Task(db.connection)
@@ -20,7 +20,7 @@ router.post("/tasks",auth,async (req,res)=>{
                 })
             })           
         }catch(e){
-            res.send('Error: '+e);
+            res.status(505).send('Error: '+e);
         }
     } 
 })

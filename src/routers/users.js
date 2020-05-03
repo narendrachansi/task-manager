@@ -23,8 +23,7 @@ router.post('/users',async (req,res)=>{
     }
     try{
         db.dbConnect()
-        const hashedPassword=await bcrypt.hash(password,8)
-        await user.addUser(name,email,hashedPassword,(id)=>{
+        await user.addUser(name,email,password,(id)=>{
             if(!id){
                 return res.status(404).send('User not added!')
             }
@@ -43,9 +42,9 @@ router.post('/users',async (req,res)=>{
                         subject: 'Accounted created',
                         text: 'New account created'
                     };
-                    email.sendEmail(mailOptions,(outcome)=>{
-                        console.log(outcome)
-                    })                   
+                     email.sendEmail(mailOptions,(outcome)=>{
+                         console.log(outcome)
+                     })                 
                     res.status(201).send(data)
                     db.dbConnectionEnd()
                 })
@@ -70,11 +69,13 @@ router.post("/users/login",async (req,res)=>{
         db.dbConnect()
         await user.login(email,(data)=>{
             if(!data[0].password){
-                return res.status(404).send('Invalid Username')
+                db.dbConnectionEnd()
+                return res.status(400).send('Invalid Username')
             }
             bcrypt.compare(password,data[0].password,(error,result)=>{
                 if(!result){
-                    return res.status(404).send('Invalid password')
+                    db.dbConnectionEnd()
+                    return res.status(400).send('Invalid password')
                 }
                 user.generateAuthToken(data[0].id,data[0].tokens,(token)=>{
                     user.getUser(data[0].id,(data)=>{
@@ -84,8 +85,8 @@ router.post("/users/login",async (req,res)=>{
                             delete this[0].tokens
                             return this
                         }
-                        res.status(200).send(data)
                         db.dbConnectionEnd()
+                        res.status(200).send(data)
                     }) 
                 })               
             })
@@ -135,7 +136,7 @@ router.post("/users/logoutall",auth,async (req,res)=>{
 
 //get user profile after authentication
 router.get("/users/me",auth,(req,res)=>{
-    res.send(req.user)
+    res.status(200).send(req.user)
     // try{
     //     const db=new Database()
     //     const user=new User(db)
@@ -240,9 +241,9 @@ router.delete("/users/me",auth,async (req,res)=>{
                 subject: 'Test account deleted',
                 text: 'Test acccount deleted'
             };
-            email.sendEmail(mailOptions,(outcome)=>{
-                console.log(outcome)
-            }) 
+            // email.sendEmail(mailOptions,(outcome)=>{
+            //     console.log(outcome)
+            // }) 
             res.status(200).send('User deleted');
             db.dbConnectionEnd() 
         })      
@@ -315,7 +316,7 @@ router.post("/users/me/avatar",auth,upload.single('avatar'),(req,res)=>{
           .greyscale() // set greyscale
           .write(path); // save
       });
-    res.send()
+    res.status(200).send()
 },(error,req,res,next)=>{
     if(error) res.status(400).send({'error':error.message})
 })

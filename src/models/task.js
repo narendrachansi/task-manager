@@ -54,5 +54,11 @@ class Task{
             callback(results.affectedRows);
         });
     }
+
+    deleteAllTasks(){
+        this.connection.query("DELETE FROM tasks", function (error, results, fields) {
+            if(error) throw error
+        });
+    }
 }
 module.exports=Task;

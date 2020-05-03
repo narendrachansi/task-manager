@@ -2,10 +2,10 @@ class Database{
     constructor(){
         this.mysql      = require('mysql');
         this.connection = this.mysql.createConnection({
-        host     : 'localhost',
-        user     : 'root',
-        password : '',
-        database : 'task-manager'
+        host     : process.env.HOST,
+        user     : process.env.USERNAME,
+        password : process.env.PASSWORD,
+        database : process.env.DATABASE
         });
     }
     dbConnect(){

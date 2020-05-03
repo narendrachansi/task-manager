@@ -1,10 +1,12 @@
 const jwt=require('jsonwebtoken')
+const bcrypt=require('bcrypt');
 class User{
     constructor(connection){
         this.connection=connection
     }
-    addUser(name,email,password,callback){
-        this.connection.query("insert into users(name,email,password) values(?,?,?)",[name,email,password], function (error, results, fields) {
+    async addUser(name,email,password,callback){
+        const hashedPassword= await bcrypt.hash(password,8)
+        this.connection.query("insert into users(name,email,password) values(?,?,?)",[name,email,hashedPassword], function (error, results, fields) {
             if(error) throw error
             callback(results.insertId)
         });
@@ -68,6 +70,11 @@ class User{
         this.connection.query("DELETE FROM users WHERE id=?",[id], function (error, results, fields) {
             if(error) throw error
             callback(results.affectedRows);
+        });
+    }
+    deleteAllUser(){
+        this.connection.query("DELETE FROM users", function (error, results, fields) {
+            if(error) throw error
         });
     }
 }

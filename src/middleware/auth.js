@@ -2,6 +2,9 @@ const jwt=require('jsonwebtoken')
 const User=require('../models/user')
 const Database=require('../db/dbconnection')
 const auth =async (req,res,next) =>{
+    if(!req.headers.authorization){
+        return res.status(401).send('Error: Please Authenticate')
+    }
     const token=req.headers.authorization.replace('Bearer ','')
     const decodedId=await jwt.verify(token,'VSC!')
     const db=new Database()
@@ -24,12 +27,12 @@ const auth =async (req,res,next) =>{
                 req.user=data
                 next()
             }else{
-                res.status(404).send('Error: Please Authenticate')
+                res.status(401).send('Error: Please Authenticate')
                 db.dbConnectionEnd()
             }        
         })
     }catch(e){
-        res.status(404).send('Error: Please Authenticate')
+        res.status(401).send('Error: Please Authenticate')
         db.dbConnectionEnd()
     }   
 }
